@@ -11,8 +11,8 @@ pipeline: COPROC? simpleOrComplexCommand (pipe simpleOrComplexCommand)*;
 sublist: pipeline (sublistJoiner pipeline)*;
 
 pipe
-    : '|'
-    | '|' '&'
+    : '|' #PipeStdoutToStdin
+    | '|' '&' #PipeStdoutAndStderrToStdin
     ;
 
 sublistJoiner
@@ -171,17 +171,19 @@ arithmeticExpression
     ;
 
 arithmeticStatement
-    :   '(' arithmeticStatement ')' #GroupedOperation
-    |   arithmeticStatement '?' arithmeticStatement ':' arithmeticStatement #TernaryExpression
-    |   IDENTIFIER arithmeticAssignmentOperator arithmeticStatement #Assignment
-    |   arithmeticStatement arithmeticOperator arithmeticStatement #Operation
-    |   ('++' | '--' | '!' | '~' | '+' | '-')?
-            (
-                integerLiteral
-                | floatLiteral
-                | identifier
-            )
-        ('++' | '--')? #LiteralValue
+    :   arithmeticModifier* '(' arithmeticStatement ')' #GroupedArithmeticOperation
+    |   arithmeticStatement '?' arithmeticStatement ':' arithmeticStatement #TernaryArithmeticExpression
+    |   IDENTIFIER arithmeticAssignmentOperator arithmeticStatement #ArithmeticAssignment
+    |   arithmeticStatement arithmeticOperator arithmeticStatement #ArithmeticOperation
+    |   arithmeticModifier* ('++' | '--')? identifier ('++' | '--')? #ArithmeticVariableReference
+    |   arithmeticModifier* (integerLiteral | floatLiteral) #ArithmeticNumericalLiteral
+    ;
+
+arithmeticModifier
+    : '!'
+    | '~'
+    | '+'
+    | '-'
     ;
 
 arithmeticAssignmentOperator

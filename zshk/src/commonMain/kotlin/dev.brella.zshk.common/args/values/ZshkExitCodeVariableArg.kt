@@ -2,7 +2,7 @@ package dev.brella.zshk.common.args.values
 
 import dev.brella.zshk.common.ShellEnvironment
 
-object ZshkExitCodeVariableArg : ZshkValueArg<Int> {
+object ZshkExitCodeVariableArg : ZshkNumericalValueArg<Int> {
     override suspend fun getValue(env: ShellEnvironment): Int =
         env.exitCode
 

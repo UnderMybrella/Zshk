@@ -2,6 +2,8 @@ package dev.brella.zshk
 
 import dev.brella.antlr.zshk.zshLexer
 import dev.brella.antlr.zshk.zshParser
+import dev.brella.antlr.zshk.zshParser.PipeStdoutAndStderrToStdinContext
+import dev.brella.antlr.zshk.zshParser.PipeStdoutToStdinContext
 import dev.brella.antlr.zshk.zshParserBaseVisitor
 import dev.brella.zshk.common.args.*
 import dev.brella.zshk.common.args.opcodes.*
@@ -9,21 +11,30 @@ import dev.brella.zshk.common.args.values.*
 import org.antlr.v4.runtime.CommonToken
 import org.antlr.v4.runtime.tree.TerminalNode
 
-class ZshellJVisitor : zshParserBaseVisitor<ZshkArg>() {
+class ZshkVisitor : zshParserBaseVisitor<ZshkArg>() {
+    fun visitPipe(ctx: zshParser.PipeContext): ZshkPipeArg =
+        when (ctx) {
+            is PipeStdoutToStdinContext -> ZshkPipeArg.StdoutToStdin
+            is PipeStdoutAndStderrToStdinContext -> ZshkPipeArg.StdoutAndStderrToStdin
+            else -> throw IllegalStateException("Illegal pipe ctx ${ctx.text} (${ctx::class})")
+        }
+
     override fun visitPipeline(ctx: zshParser.PipelineContext): ZshkPipelineOpcode {
         val isCoproc = ctx.COPROC() != null
 
         val allCommands = ctx.simpleOrComplexCommand()
             .map(this::visitSimpleOrComplexCommand)
             .filterIsInstance<ZshkOpcode>()
-        val pipes = ctx.pipe().map(this::visitPipe)
+
+        val pipes = ctx.pipe()
+            .map(this::visitPipe)
 
         return when (allCommands.size) {
             1 -> ZshkPipelineOpcode(isCoproc, allCommands[0])
             2 ->
                 ZshkPipelineOpcode(
                     isCoproc,
-                    ZshkPipeOpcode(allCommands[0], ZshkPipeArg.StdoutToStdin, allCommands[1])
+                    ZshkPipeOpcode(allCommands[0], pipes[0], allCommands[1])
                 )
             else ->
                 ZshkPipelineOpcode(
@@ -31,7 +42,7 @@ class ZshellJVisitor : zshParserBaseVisitor<ZshkArg>() {
                     allCommands
                         .drop(1)
                         .foldIndexed(allCommands.first()) { index, left, right ->
-                            ZshkPipeOpcode(left, ZshkPipeArg.StdoutToStdin, right)
+                            ZshkPipeOpcode(left, pipes[index], right)
                         }
                 )
         }
@@ -44,11 +55,11 @@ class ZshellJVisitor : zshParserBaseVisitor<ZshkArg>() {
         ZshkScriptOpcode(ctx.sublist().map(this::visitSublist))
 
     override fun visitSublist(ctx: zshParser.SublistContext): ZshkScriptOpcode {
-        val pipelines = ctx.pipeline().map(this::visitPipeline)
-
         val opcodes: MutableList<ZshkOpcode> = ArrayList()
 
-        val allPipelines = ctx.pipeline().map(this::visitPipeline)
+        val allPipelines = ctx.pipeline()
+            .map(this::visitPipeline)
+
         val allJoins = ctx.sublistJoiner()
 
         opcodes.add(allPipelines[0])
@@ -191,7 +202,7 @@ class ZshellJVisitor : zshParserBaseVisitor<ZshkArg>() {
         throw IllegalStateException("Unknown float literal in ${ctx.text}")
     }
 
-    override fun visitVariableReference(ctx: zshParser.VariableReferenceContext): ZshkValueArg<*>? {
+    override fun visitVariableReference(ctx: zshParser.VariableReferenceContext): ZshkValueArg<*> {
         ctx.VARIABLE_REFERENCE()?.let { return ZshkVariableArg(it.text.substring(1)) }
         ctx.EXIT_CODE_VAR_REF()?.let { return ZshkExitCodeVariableArg }
         
@@ -249,8 +260,11 @@ class ZshellJVisitor : zshParserBaseVisitor<ZshkArg>() {
     }
 
     override fun visitIfThenFi(ctx: zshParser.IfThenFiContext): ZshkIfCheckOpcode {
-        val conditionals = ctx.conditional().map(this::visitConditional)
-        val lists = ctx.list().map(this::visitList)
+        val conditionals = ctx.conditional()
+            .map(this::visitConditional)
+
+        val lists = ctx.list()
+            .map(this::visitList)
 
         val ifThens: MutableList<Pair<ZshkArg, ZshkOpcode>> = ArrayList()
         var elseThen: ZshkOpcode? = null
@@ -258,7 +272,7 @@ class ZshellJVisitor : zshParserBaseVisitor<ZshkArg>() {
         for (i in conditionals.indices) {
             val check =
                 conditionals[i] ?: throw IllegalStateException("Invalid conditional @ ${ctx.conditional(i).text}")
-            val list = lists[i] ?: throw IllegalStateException("Invalid list @ ${ctx.list(i).text}")
+            val list = lists[i]
             ifThens.add(check to list)
         }
         if (lists.size > conditionals.size) elseThen = lists.last()
@@ -270,7 +284,8 @@ class ZshellJVisitor : zshParserBaseVisitor<ZshkArg>() {
         val conditionals = ctx.conditional()
             .map(this::visitConditional)
 
-        val lists = ctx.list().map(this::visitList)
+        val lists = ctx.list()
+            .map(this::visitList)
 
         val ifThens: MutableList<Pair<ZshkArg, ZshkOpcode>> = ArrayList()
         var elseThen: ZshkOpcode? = null
@@ -278,7 +293,7 @@ class ZshellJVisitor : zshParserBaseVisitor<ZshkArg>() {
         for (i in conditionals.indices) {
             val check =
                 conditionals[i] ?: throw IllegalStateException("Invalid conditional @ ${ctx.conditional(i).text}")
-            val list = lists[i] ?: throw IllegalStateException("Invalid list @ ${ctx.list(i).text}")
+            val list = lists[i]
             ifThens.add(check to list)
         }
         if (lists.size > conditionals.size) elseThen = lists.last()
@@ -308,26 +323,26 @@ class ZshellJVisitor : zshParserBaseVisitor<ZshkArg>() {
         return super.visitUntilDoDone(ctx)
     }
 
-    fun visitArithmeticStatement(ctx: zshParser.ArithmeticStatementContext): ZshkValueArg<*> =
+    inline fun visitArithmeticStatement(ctx: zshParser.ArithmeticStatementContext): ZshkValueArg<*> =
         ctx.accept(this) as ZshkValueArg<*>
 
     override fun visitArithmeticExpression(ctx: zshParser.ArithmeticExpressionContext): ZshkArg {
         return visitArithmeticStatement(ctx.arithmeticStatement(0))
     }
 
-    override fun visitGroupedOperation(ctx: zshParser.GroupedOperationContext?): ZshkArg {
-        return super.visitGroupedOperation(ctx)
+    override fun visitGroupedArithmeticOperation(ctx: zshParser.GroupedArithmeticOperationContext?): ZshkArg {
+        return super.visitGroupedArithmeticOperation(ctx)
     }
 
-    override fun visitTernaryExpression(ctx: zshParser.TernaryExpressionContext?): ZshkArg {
-        return super.visitTernaryExpression(ctx)
+    override fun visitTernaryArithmeticExpression(ctx: zshParser.TernaryArithmeticExpressionContext?): ZshkArg {
+        return super.visitTernaryArithmeticExpression(ctx)
     }
 
-    override fun visitAssignment(ctx: zshParser.AssignmentContext?): ZshkArg {
-        return super.visitAssignment(ctx)
+    override fun visitArithmeticAssignment(ctx: zshParser.ArithmeticAssignmentContext?): ZshkArg {
+        return super.visitArithmeticAssignment(ctx)
     }
 
-    override fun visitOperation(ctx: zshParser.OperationContext): ZshkArg {
+    override fun visitArithmeticOperation(ctx: zshParser.ArithmeticOperationContext): ZshkArg {
         val values = ctx.arithmeticStatement()
             .mapTo(ArrayList(), this::visitArithmeticStatement)
 
@@ -353,20 +368,37 @@ class ZshellJVisitor : zshParserBaseVisitor<ZshkArg>() {
             }
         }
 
-        if (values.size != 1) {
-            throw IllegalStateException("Somehow wasn't able to squash ${values}")
-        }
+        if (values.size != 1) throw IllegalStateException("Somehow wasn't able to squash ${values}")
 
         return values[0]
     }
 
-    override fun visitLiteralValue(ctx: zshParser.LiteralValueContext?): ZshkValueArg<*> {
-        ctx?.identifier()?.let { return ZshkVariableArg(it.text) }
-        ctx?.integerLiteral()?.let(this::visitIntegerLiteral)?.let { return it }
-        ctx?.floatLiteral()?.let(this::visitFloatLiteral)?.let { return it }
+    override fun visitArithmeticNumericalLiteral(ctx: zshParser.ArithmeticNumericalLiteralContext): ZshkValueArg<*> {
+        val modifiers = ctx.arithmeticModifier()
+            .mapNotNull { this.visitArithmeticModifier(it).inner }
+
+        ctx.integerLiteral()?.let(this::visitIntegerLiteral)?.let { return it.withModifiers(modifiers) }
+        ctx.floatLiteral()?.let(this::visitFloatLiteral)?.let { return it.withModifiers(modifiers) }
 
         throw IllegalStateException("Unknown arithmetic value @ $ctx")
     }
+
+    override fun visitArithmeticVariableReference(ctx: zshParser.ArithmeticVariableReferenceContext): ZshkValueArg<*> {
+        ctx.identifier()?.let { return ZshkVariableArg(it.text) }
+
+        throw IllegalStateException("Unknown arithmetic value @ $ctx")
+    }
+
+    override fun visitArithmeticModifier(ctx: zshParser.ArithmeticModifierContext): ZshkContainerArg<ZshkArithmeticModifier> =
+        ZshkContainerArg(
+            when (ctx.text) {
+                "!" -> ZshkArithmeticModifier.BITWISE_NOT
+                "~" -> ZshkArithmeticModifier.BITWISE_INV
+                "+" -> ZshkArithmeticModifier.UNARY_PLUS
+                "-" -> ZshkArithmeticModifier.UNARY_MINUS
+                else -> null
+            }
+        )
 
     override fun visitArithmeticOperator(ctx: zshParser.ArithmeticOperatorContext): ZshkContainerArg<ZshkArithmeticOperator> =
         ZshkContainerArg(

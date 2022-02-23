@@ -29,15 +29,15 @@ ALWAYS:             'always';
 FUNCTION:           'function';
 
 
-DECIMAL_LITERAL:    ('0' [dD])? ('0' | [1-9] (Digits? | '_'+ Digits)) [lL]?;
-HEX_LITERAL:        '0' [xX] [0-9a-fA-F] ([0-9a-fA-F_]* [0-9a-fA-F])? [lL]?;
-OCT_LITERAL:        '0' [oO] '_'* [0-7] ([0-7_]* [0-7])? [lL]?;
-BINARY_LITERAL:     '0' [bB] [01] ([01_]* [01])? [lL]?;
-HASH_LITERAL:       [0-9]+ '#' [0-9a-zA-Z] ([0-9a-zA-Z_]* [0-9a-zA-Z])? [lL]?;
-BRACKET_LITERAL:    '[' [0-9]+ ']' [0-9a-zA-Z] ([0-9a-zA-Z_]* [0-9a-zA-Z])? [lL]?;
+DECIMAL_LITERAL:    '-'? ('0' [dD])? ('0' | [1-9] (Digits? | '_'+ Digits)) [lL]?;
+HEX_LITERAL:        '-'? '0' [xX] [0-9a-fA-F] ([0-9a-fA-F_]* [0-9a-fA-F])? [lL]?;
+OCT_LITERAL:        '-'? '0' [oO] '_'* [0-7] ([0-7_]* [0-7])? [lL]?;
+BINARY_LITERAL:     '-'? '0' [bB] [01] ([01_]* [01])? [lL]?;
+HASH_LITERAL:       '-'? [0-9]+ '#' [0-9a-zA-Z] ([0-9a-zA-Z_]* [0-9a-zA-Z])? [lL]?;
+BRACKET_LITERAL:    '-'? '[' [0-9]+ ']' [0-9a-zA-Z] ([0-9a-zA-Z_]* [0-9a-zA-Z])? [lL]?;
 
-FLOAT_LITERAL:      (Digits '.' Digits? | '.' Digits) ExponentPart? [fFdD]?
-             |       Digits (ExponentPart [fFdD]? | [fFdD])
+FLOAT_LITERAL:      '-'? (Digits '.' Digits? | '.' Digits) ExponentPart? [fFdD]?
+             |      '-'? Digits (ExponentPart [fFdD]? | [fFdD])
              ;
 
 //HEX_FLOAT_LITERAL:  '0' [xX] (HexDigits '.'? | HexDigits? '.' HexDigits) [pP] [+-]? Digits [fFdD]?;

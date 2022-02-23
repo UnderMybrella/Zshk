@@ -2,7 +2,6 @@ package dev.brella.zshk
 
 import dev.brella.antlr.zshk.zshLexer
 import dev.brella.antlr.zshk.zshParser
-import dev.brella.kornea.io.common.flow.PrintOutputFlow
 import dev.brella.kornea.io.common.flow.readBytes
 import dev.brella.kornea.io.jvm.JVMInputFlow
 import dev.brella.kornea.io.jvm.JVMOutputFlow
@@ -13,7 +12,6 @@ import dev.brella.zshk.common.joinToStringSuspend
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonToken
 import org.antlr.v4.runtime.CommonTokenStream
-import java.io.PrintStream
 
 inline fun buildLexerAndParser(builder: () -> String) =
     buildLexerAndParser(builder())
@@ -56,7 +54,7 @@ suspend fun main(args: Array<String>) {
         """.trimIndent()
     }
 
-    val visitor = ZshellJVisitor()
+    val visitor = ZshkVisitor()
 
     val env = ShellEnvironment(
         stdin = JVMInputFlow(System.`in`, "stdin"),

@@ -15,4 +15,3 @@ interface ZshkValueArg<out T> : ZshkArg {
     override suspend fun test(env: ShellEnvironment): Boolean =
         toStringValue(env).isNotEmpty()
 }
-

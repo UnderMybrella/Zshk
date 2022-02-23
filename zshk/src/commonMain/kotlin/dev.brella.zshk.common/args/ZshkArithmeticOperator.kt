@@ -5,6 +5,7 @@ import dev.brella.zshk.common.args.values.ZshkIntegerLiteralArg
 import dev.brella.zshk.common.args.values.ZshkValueArg
 import kotlin.math.pow
 
+//TODO: Make float aware
 fun interface ZshkArithmeticOperator {
     companion object {
         val BITWISE_SHIFT_LEFT = simpleArithmeticOperator(Int::shl)
