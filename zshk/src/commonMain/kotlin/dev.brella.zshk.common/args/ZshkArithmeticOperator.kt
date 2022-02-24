@@ -7,35 +7,38 @@ import kotlin.math.pow
 
 //TODO: Make float aware
 fun interface ZshkArithmeticOperator {
+    data class ZshkArithmeticOperatorWithName(val name: String, val operator: ZshkArithmeticOperator): ZshkArithmeticOperator by operator {
+        override fun toString(): String = name
+    }
+
     companion object {
-        val BITWISE_SHIFT_LEFT = simpleArithmeticOperator(Int::shl)
-        val BITWISE_SHIFT_RIGHT = simpleArithmeticOperator(Int::shr)
-        val BITWISE_AND = simpleArithmeticOperator(Int::and)
-        val BITWISE_XOR = simpleArithmeticOperator(Int::xor)
-        val BITWISE_OR = simpleArithmeticOperator(Int::or)
-        val EXPONENTIATION = simpleArithmeticOperator { lhs, rhs -> lhs.toDouble().pow(rhs).toInt() }
-        val MULTIPLICATION = simpleArithmeticOperator(Int::times)
-        val DIVISION = simpleArithmeticOperator(Int::div)
-        val MODULUS = simpleArithmeticOperator(Int::mod)
-        val REMAINDER = simpleArithmeticOperator(Int::rem)
-        val ADDITION = simpleArithmeticOperator(Int::plus)
-        val SUBTRACTION = simpleArithmeticOperator(Int::minus)
-        val LESS_THAN = comparisonArithmeticOperator { lhs, rhs -> lhs < rhs }
-        val GREATER_THAN = comparisonArithmeticOperator { lhs, rhs -> lhs > rhs }
-        val LESS_THAN_EQUAL_TO = comparisonArithmeticOperator { lhs, rhs -> lhs <= rhs }
-        val GREATER_THAN_EQUAL_TO = comparisonArithmeticOperator { lhs, rhs -> lhs >= rhs }
-        val EQUALITY = comparisonArithmeticOperator { lhs, rhs -> lhs == rhs }
-        val INEQUALITY = comparisonArithmeticOperator { lhs, rhs -> lhs != rhs }
+        val BITWISE_SHIFT_LEFT = simpleArithmeticOperator("BITWISE_SHIFT_LEFT", Int::shl)
+        val BITWISE_SHIFT_RIGHT = simpleArithmeticOperator("BITWISE_SHIFT_RIGHT", Int::shr)
+        val BITWISE_AND = simpleArithmeticOperator("BITWISE_AND", Int::and)
+        val BITWISE_XOR = simpleArithmeticOperator("BITWISE_XOR", Int::xor)
+        val BITWISE_OR = simpleArithmeticOperator("BITWISE_OR", Int::or)
+        val EXPONENTIATION = simpleArithmeticOperator("EXPONENTIATION") { lhs, rhs -> lhs.toDouble().pow(rhs).toInt() }
+        val MULTIPLICATION = simpleArithmeticOperator("MULTIPLICATION", Int::times)
+        val DIVISION = simpleArithmeticOperator("DIVISION", Int::div)
+        val MODULUS = simpleArithmeticOperator("MODULUS", Int::mod)
+        val REMAINDER = simpleArithmeticOperator("REMAINDER", Int::rem)
+        val ADDITION = simpleArithmeticOperator("ADDITION", Int::plus)
+        val SUBTRACTION = simpleArithmeticOperator("SUBTRACTION", Int::minus)
+        val LESS_THAN = comparisonArithmeticOperator("LESS_THAN") { lhs, rhs -> lhs < rhs }
+        val GREATER_THAN = comparisonArithmeticOperator("GREATER_THAN") { lhs, rhs -> lhs > rhs }
+        val LESS_THAN_EQUAL_TO = comparisonArithmeticOperator("LESS_THAN_EQUAL_TO") { lhs, rhs -> lhs <= rhs }
+        val GREATER_THAN_EQUAL_TO = comparisonArithmeticOperator("GREATER_THAN_EQUAL_TO") { lhs, rhs -> lhs >= rhs }
+        val EQUALITY = comparisonArithmeticOperator("EQUALITY") { lhs, rhs -> lhs == rhs }
+        val INEQUALITY = comparisonArithmeticOperator("INEQUALITY") { lhs, rhs -> lhs != rhs }
 
         val LOGICAL_AND =
-            evalArgsToBoolean { env, lhs, rhs -> lhs.test(env) && rhs.test(env) }
+            evalArgsToBoolean("LOGICAL_AND") { env, lhs, rhs -> lhs.test(env) && rhs.test(env) }
 
         val LOGICAL_OR =
-            evalArgsToBoolean { env, lhs, rhs -> lhs.test(env) || rhs.test(env) }
+            evalArgsToBoolean("LOGICAL_OR") { env, lhs, rhs -> lhs.test(env) || rhs.test(env) }
 
         val LOGICAL_XOR =
-            evalArgsToBoolean { env, lhs, rhs -> lhs.test(env) xor rhs.test(env) }
-
+            evalArgsToBoolean("LOGICAL_XOR") { env, lhs, rhs -> lhs.test(env) xor rhs.test(env) }
 
         val ZSH_OPERATOR_PRECEDENCE by lazy {
             listOf(
@@ -61,6 +64,23 @@ fun interface ZshkArithmeticOperator {
 
         inline fun comparisonArithmeticOperator(crossinline func: suspend (lhs: Int, rhs: Int) -> Boolean): ZshkArithmeticOperator =
             evalArgsToBoolean { env, lhs, rhs -> func(lhs.toIntValue(env), rhs.toIntValue(env)) }
+
+        /** Named */
+
+        inline fun evalArgsToInt(name: String, crossinline func: suspend (env: ShellEnvironment, lhs: ZshkValueArg<*>, rhs: ZshkValueArg<*>) -> Int): ZshkArithmeticOperator =
+            withName(name) { env, lhs, rhs -> ZshkIntegerLiteralArg(func(env, lhs, rhs)) }
+
+        inline fun evalArgsToBoolean(name: String, crossinline func: suspend (env: ShellEnvironment, lhs: ZshkValueArg<*>, rhs: ZshkValueArg<*>) -> Boolean): ZshkArithmeticOperator =
+            withName(name) { env, lhs, rhs -> ZshkIntegerLiteralArg(if (func(env, lhs, rhs)) 1 else 0) }
+
+        inline fun simpleArithmeticOperator(name: String, crossinline func: suspend (lhs: Int, rhs: Int) -> Int): ZshkArithmeticOperator =
+            evalArgsToInt(name) { env, lhs, rhs -> func(lhs.toIntValue(env), rhs.toIntValue(env)) }
+
+        inline fun comparisonArithmeticOperator(name: String, crossinline func: suspend (lhs: Int, rhs: Int) -> Boolean): ZshkArithmeticOperator =
+            evalArgsToBoolean(name) { env, lhs, rhs -> func(lhs.toIntValue(env), rhs.toIntValue(env)) }
+
+        inline fun withName(name: String, operator: ZshkArithmeticOperator): ZshkArithmeticOperator =
+            ZshkArithmeticOperatorWithName(name, operator)
     }
 
     suspend fun eval(

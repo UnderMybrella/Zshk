@@ -15,4 +15,7 @@ data class ZshkArithmeticArg(val lhs: ZshkValueArg<*>, val operator: ZshkArithme
 
     override suspend fun test(env: ShellEnvironment): Boolean =
         toIntValue(env) != 0
+
+    override suspend fun toDebugString(env: ShellEnvironment): String =
+        "(${lhs.toDebugString(env)} ${operator.toString()} ${rhs.toDebugString(env)})"
 }

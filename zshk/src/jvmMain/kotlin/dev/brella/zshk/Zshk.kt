@@ -8,6 +8,7 @@ import dev.brella.kornea.io.jvm.JVMOutputFlow
 import dev.brella.zshk.common.ShellEnvironment
 import dev.brella.zshk.common.args.opcodes.ZshkOpcode
 import dev.brella.zshk.common.args.opcodes.exec
+import dev.brella.zshk.common.args.values.ZshkIntegerLiteralArg
 import dev.brella.zshk.common.joinToStringSuspend
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonToken
@@ -50,7 +51,9 @@ suspend fun main(args: Array<String>) {
 //        """.trimIndent()
 
         """
-        echo $((5 ** 2 + 2 << 1))
+        echo $((~ testing++))
+        echo $((~ ++testing))
+        echo $((testing))
         """.trimIndent()
     }
 
@@ -106,6 +109,8 @@ suspend fun main(args: Array<String>) {
 
     env.registerFunction("true") { _, _ -> 0 }
     env.registerFunction("false") { _, _ -> 1 }
+
+    env.variables["testing"] = ZshkIntegerLiteralArg(128)
 
     val script = visitor.visitScript(parser.script())
 

@@ -205,13 +205,13 @@ class ZshkVisitor : zshParserBaseVisitor<ZshkArg>() {
     override fun visitVariableReference(ctx: zshParser.VariableReferenceContext): ZshkValueArg<*> {
         ctx.VARIABLE_REFERENCE()?.let { return ZshkVariableArg(it.text.substring(1)) }
         ctx.EXIT_CODE_VAR_REF()?.let { return ZshkExitCodeVariableArg }
-        
+
         throw IllegalStateException("Unknown var ref in ${ctx.text}")
     }
 
     override fun visitQuotedString(ctx: zshParser.QuotedStringContext): ZshkQuotedStringArg {
         val components: MutableList<ZshkArg> = ArrayList()
-        
+
         ctx.children.forEach { node ->
             when (node) {
                 is TerminalNode -> {
@@ -342,7 +342,7 @@ class ZshkVisitor : zshParserBaseVisitor<ZshkArg>() {
         return super.visitArithmeticAssignment(ctx)
     }
 
-    override fun visitArithmeticOperation(ctx: zshParser.ArithmeticOperationContext): ZshkArg {
+    override fun visitArithmeticOperation(ctx: zshParser.ArithmeticOperationContext): ZshkValueArg<*> {
         val values = ctx.arithmeticStatement()
             .mapTo(ArrayList(), this::visitArithmeticStatement)
 
@@ -377,25 +377,44 @@ class ZshkVisitor : zshParserBaseVisitor<ZshkArg>() {
         val modifiers = ctx.arithmeticModifier()
             .mapNotNull { this.visitArithmeticModifier(it).inner }
 
-        ctx.integerLiteral()?.let(this::visitIntegerLiteral)?.let { return it.withModifiers(modifiers) }
-        ctx.floatLiteral()?.let(this::visitFloatLiteral)?.let { return it.withModifiers(modifiers) }
+        ctx.integerLiteral()?.let(this::visitIntegerLiteral)?.let { return it withArithmeticModifiers modifiers }
+        ctx.floatLiteral()?.let(this::visitFloatLiteral)?.let { return it withArithmeticModifiers modifiers }
 
         throw IllegalStateException("Unknown arithmetic value @ $ctx")
     }
 
     override fun visitArithmeticVariableReference(ctx: zshParser.ArithmeticVariableReferenceContext): ZshkValueArg<*> {
-        ctx.identifier()?.let { return ZshkVariableArg(it.text) }
+        val modifiers = ctx.arithmeticModifier()
+            .mapNotNull { this.visitArithmeticModifier(it).inner }
 
-        throw IllegalStateException("Unknown arithmetic value @ $ctx")
+        val children = ctx.children
+
+        ctx.identifier()?.let { arg ->
+            val index = children.indexOf(arg)
+            val prefix = when (children.getOrNull(index - 1)?.text) {
+                "--" -> ZshkValueArgTransformer.DECREMENT
+                "++" -> ZshkValueArgTransformer.INCREMENT
+                else -> null
+            }
+            val postfix = when (children.getOrNull(index + 1)?.text) {
+                "--" -> ZshkValueArgTransformer.DECREMENT
+                "++" -> ZshkValueArgTransformer.INCREMENT
+                else -> null
+            }
+
+            return ZshkVariableArg(arg.text, prefix, postfix) withArithmeticModifiers modifiers
+        }
+
+        throw IllegalStateException("Unknown arithmetic variable @ $ctx")
     }
 
-    override fun visitArithmeticModifier(ctx: zshParser.ArithmeticModifierContext): ZshkContainerArg<ZshkArithmeticModifier> =
+    override fun visitArithmeticModifier(ctx: zshParser.ArithmeticModifierContext): ZshkContainerArg<ZshkValueArgTransformer> =
         ZshkContainerArg(
             when (ctx.text) {
-                "!" -> ZshkArithmeticModifier.BITWISE_NOT
-                "~" -> ZshkArithmeticModifier.BITWISE_INV
-                "+" -> ZshkArithmeticModifier.UNARY_PLUS
-                "-" -> ZshkArithmeticModifier.UNARY_MINUS
+                "!" -> ZshkValueArgTransformer.BITWISE_NOT
+                "~" -> ZshkValueArgTransformer.BITWISE_INV
+                "+" -> ZshkValueArgTransformer.UNARY_PLUS
+                "-" -> ZshkValueArgTransformer.UNARY_MINUS
                 else -> null
             }
         )

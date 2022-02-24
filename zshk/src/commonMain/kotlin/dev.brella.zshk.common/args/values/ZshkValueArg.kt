@@ -15,3 +15,6 @@ interface ZshkValueArg<out T> : ZshkArg {
     override suspend fun test(env: ShellEnvironment): Boolean =
         toStringValue(env).isNotEmpty()
 }
+
+inline infix fun ZshkValueArg<*>.withArithmeticModifiers(modifiers: List<ZshkValueArgTransformer>): ZshkValueArg<*> =
+    if (modifiers.isEmpty()) this else ZshkIntegerModifiedArg(this, modifiers)
