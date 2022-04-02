@@ -1,9 +1,11 @@
 package dev.brella.zshk.common.args.opcodes
 
+import dev.brella.kornea.toolkit.common.printLine
 import dev.brella.zshk.common.ShellEnvironment
 import dev.brella.zshk.common.args.ZshkArg
 import dev.brella.zshk.common.args.ZshkCommandModifierArg
 import dev.brella.zshk.common.joinToStringSuspend
+import dev.brella.zshk.common.stderr
 
 data class ZshkCommandOpcode(
     val commandModifier: ZshkCommandModifierArg?,
@@ -18,8 +20,8 @@ data class ZshkCommandOpcode(
         val commandName = args.firstOrNull()?.toStringValue(this) ?: ""
         val func = getFunction(commandName)
         if (func == null) {
-            stderr.write("Command not found: ${commandName}\r\n".encodeToByteArray())
-            stderr.flush()
+            stderr?.printLine("Command not found: ${commandName}\r\n")
+            stderr?.flush()
 
             return 127
         } else {

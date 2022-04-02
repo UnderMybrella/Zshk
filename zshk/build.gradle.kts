@@ -1,5 +1,6 @@
 plugins {
     kotlin("multiplatform")
+    id("kotlinx-atomicfu")
 }
 
 group = "dev.brella"
@@ -17,7 +18,8 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 implementation(kotlin("stdlib-common"))
-                implementation("dev.brella:kornea-io:5.4.3-alpha")
+                implementation("dev.brella:kornea-io:5.5.1-alpha")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
             }
         }
         val commonTest by getting {

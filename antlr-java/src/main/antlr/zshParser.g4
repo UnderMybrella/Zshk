@@ -60,18 +60,21 @@ ifSingular: IF conditional sublist;
 forInDoDone: FOR identifier+ (IN literal+ (';' | NL)+ | '(' literal+ ')' (';' | NL)*) DO list DONE;
 forLiteralsDoDone: FOR '(' '(' literal ';' literal ';' literal ')' ')' DO list DONE;
 
-whileDoDone: WHILE list DO list DONE;
-untilDoDone: UNTIL list DO list DONE;
-repeatDoDone: REPEAT literal DO list DONE;
-caseInEsac: CASE literal IN ('('? literal ('|' literal)* ')' list (';' (';' | '&' | '|')))* ESAC;
+whileDoDone: WHILE conditional DO list DONE;
+untilDoDone: UNTIL conditional DO list DONE;
+repeatDoDone: REPEAT arithmeticStatement DO list DONE;
+caseInEsac: CASE literal IN casePattern* ESAC;
 selectDoDone: SELECT literal (IN literal+ (';' | NL)+) DO list DONE;
+
+casePattern: '('? literal ('|' literal)* ')' list caseTerminator;
+caseTerminator: (';' (';' | '&' | '|'));
 
 forkProcess: '(' listWithOptionalTerminator ')';
 codeblock: '{' listWithOptionalTerminator '}';
 tryAlways:  '{' tryList=list '}' ALWAYS (';' | NL)* '{' alwaysList=list '}';
 functionDeclaration: FUNCTION identifier ('(' ')')? (';' | NL)* '{' list '}';
 simpleFunctionListDeclaration: identifier '(' ')' (';' | NL)* '{' list '}';
-simpleFunctionSingleDeclaration: identifier '(' ')' (';' | NL)* '{' simpleCommand '}';
+simpleFunctionSingleDeclaration: identifier '(' ')' (';' | NL)* simpleOrComplexCommand;
 
 conditional
     : list
@@ -79,24 +82,23 @@ conditional
     ;
 
 conditionalExpression
-    : '[' '[' identifier ']' ']'
+    : '[' '[' expression ']' ']'
     ;
 
 expression
-    : flaggedExpression
-    | literal shortFlagGroup literal
-    | literal '=' '='? literal
-    | literal '!' '=' literal
-    | literal '=' '~' literal
-    | literal '<' literal
-    | literal '>' literal
-    | '(' expression ')'
-    | '!' expression
-    | expression AND expression
-    | expression OR expression
+    : literal #expressionLiteral
+    | shortFlagGroup literal #expressionShortFlagLiteral
+    | literal shortFlagGroup literal #expressionShortFlagLiterals
+    | literal '=' '='? literal #expressionStringEquals
+    | literal '!' '=' literal #expressionStringNotEquals
+    | literal '=' '~' literal #expressionStringNotEqualsRegexp
+    | literal '<' literal #expressionStringLessThan
+    | literal '>' literal #expressionStringGreaterThan
+    | '(' expression ')' #expressionIsTrue
+    | '!' expression #expressionIsFalse
+    | expression AND expression #expressionAnd
+    | expression OR expression #expressionOr
     ;
-
-flaggedExpression: shortFlagGroup literal;
 
 commandModifier
     : SUB
@@ -128,9 +130,13 @@ literal
     | NULL_LITERAL
     | identifier
     | variableReference
-    | '$(' '(' arithmeticExpression ')' ')'
+    | commandSubstitutionLiteral
+    | arithmeticLiteral
 //    | TEXT_BLOCK // Java17
     ;
+
+commandSubstitutionLiteral: '$(' listWithOptionalTerminator ')';
+arithmeticLiteral: ARITHMETIC_OPEN arithmeticExpression ARITHMETIC_CLOSE;
 
 integerLiteral
     : DECIMAL_LITERAL
@@ -157,13 +163,14 @@ quotedString
         (ESCAPES
         | STRING_CHARACTERS
         | variableReference
+        | commandSubstitutionLiteral
+        | arithmeticLiteral
         )*
       END_QUOTED_STRING
     ;
 
 variableReference
     : VARIABLE_REFERENCE
-    | EXIT_CODE_VAR_REF
     ;
 
 arithmeticExpression

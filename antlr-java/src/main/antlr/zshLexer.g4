@@ -58,7 +58,7 @@ NULL_LITERAL:       'null';
 // Separators
 
 LPAREN:             '(';
-RPAREN:             ')';
+RPAREN:             ')' -> popMode;
 LBRACE:             '{';
 RBRACE:             '}';
 LBRACK:             '[';
@@ -126,9 +126,10 @@ LINE_COMMENT:       '//' ~[\r\n]*    -> channel(HIDDEN);
 
 IDENTIFIER:         Letter LetterOrDigit*;
 
-EXIT_CODE_VAR_REF:  '$?';
-VARIABLE_REFERENCE: '$' IDENTIFIER;
-SUBSHELL:           '$(';
+VARIABLE_REFERENCE: '$' (IDENTIFIER | [!#$-*@?_]);
+SUBSHELL:           '$(' -> pushMode(DEFAULT_MODE);
+ARITHMETIC_OPEN:    '$((' -> pushMode(DEFAULT_MODE);
+ARITHMETIC_CLOSE:   '))' -> popMode;
 
 // Fragment rules
 
@@ -169,8 +170,9 @@ mode QuotingMode;
 
 ESCAPES: '\\' ('u' HexDigits HexDigits HexDigits HexDigits | 'x' HexDigits HexDigits | .);
 STRING_CHARACTERS: ~["\\\n$]+;
-QUOTED_STRING_EXIT_CODE_VAR_REF: EXIT_CODE_VAR_REF -> type(EXIT_CODE_VAR_REF);
 QUOTED_STRING_VARIABLE_REFERENCE: VARIABLE_REFERENCE -> type(VARIABLE_REFERENCE);
+QUOTED_STRING_SUBSHELL:           '$(' -> pushMode(DEFAULT_MODE), type(SUBSHELL);
+QUOTED_STRING_ARITHMETIC_OPEN:    '$((' -> pushMode(DEFAULT_MODE), type(ARITHMETIC_OPEN);
 
 fragment ESCAPE_CHARACTERS: ["\\/bfnrt$&];
 

@@ -53,6 +53,19 @@ fun interface ZshkArithmeticOperator {
             )
         }
 
+        val C_OPERATOR_PRECEDENCE by lazy {
+            listOf(
+                EXPONENTIATION,
+                MULTIPLICATION, DIVISION, MODULUS,
+                ADDITION, SUBTRACTION,
+                BITWISE_SHIFT_LEFT, BITWISE_SHIFT_RIGHT,
+                LESS_THAN, GREATER_THAN, LESS_THAN_EQUAL_TO, GREATER_THAN_EQUAL_TO,
+                EQUALITY, INEQUALITY,
+                BITWISE_AND, BITWISE_XOR, BITWISE_OR,
+                LOGICAL_AND, LOGICAL_XOR, LOGICAL_OR,
+            )
+        }
+
         inline fun evalArgsToInt(crossinline func: suspend (env: ShellEnvironment, lhs: ZshkValueArg<*>, rhs: ZshkValueArg<*>) -> Int): ZshkArithmeticOperator =
             ZshkArithmeticOperator { env, lhs, rhs -> ZshkIntegerLiteralArg(func(env, lhs, rhs)) }
 

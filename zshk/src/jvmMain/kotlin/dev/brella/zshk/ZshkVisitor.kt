@@ -126,7 +126,8 @@ class ZshkVisitor : zshParserBaseVisitor<ZshkArg>() {
         ctx?.variableReference()?.let(this::visitVariableReference)?.let { return it }
         ctx?.BOOL_LITERAL()?.let { return ZshkBooleanLiteralArg(it.text.toBoolean()) }
         ctx?.NULL_LITERAL()?.let { return ZshkNullLiteralArg }
-        ctx?.arithmeticExpression()?.let(this::visitArithmeticExpression)?.let { return it as ZshkValueArg<*> }
+        ctx?.arithmeticLiteral()?.let(this::visitArithmeticLiteral)?.let { return it }
+        ctx?.commandSubstitutionLiteral()?.let(this::visitCommandSubstitutionLiteral)?.let { return it }
 
         throw IllegalStateException("Unknown literal in ${ctx?.text}")
     }
@@ -204,10 +205,16 @@ class ZshkVisitor : zshParserBaseVisitor<ZshkArg>() {
 
     override fun visitVariableReference(ctx: zshParser.VariableReferenceContext): ZshkValueArg<*> {
         ctx.VARIABLE_REFERENCE()?.let { return ZshkVariableArg(it.text.substring(1)) }
-        ctx.EXIT_CODE_VAR_REF()?.let { return ZshkExitCodeVariableArg }
+//        ctx.EXIT_CODE_VAR_REF()?.let { return ZshkExitCodeVariableArg }
 
         throw IllegalStateException("Unknown var ref in ${ctx.text}")
     }
+
+    override fun visitArithmeticLiteral(ctx: zshParser.ArithmeticLiteralContext): ZshkValueArg<*> =
+        visitArithmeticExpression(ctx.arithmeticExpression())
+
+    override fun visitCommandSubstitutionLiteral(ctx: zshParser.CommandSubstitutionLiteralContext): ZshkCommandSubstitutionArg =
+        ZshkCommandSubstitutionArg(visitListWithOptionalTerminator(ctx.listWithOptionalTerminator()))
 
     override fun visitQuotedString(ctx: zshParser.QuotedStringContext): ZshkQuotedStringArg {
         val components: MutableList<ZshkArg> = ArrayList()
@@ -248,7 +255,9 @@ class ZshkVisitor : zshParserBaseVisitor<ZshkArg>() {
                         else -> {}
                     }
                 }
-                is zshParser.VariableReferenceContext -> visitVariableReference(node)?.let(components::add)
+                is zshParser.VariableReferenceContext -> visitVariableReference(node).let(components::add)
+                is zshParser.CommandSubstitutionLiteralContext -> visitCommandSubstitutionLiteral(node).let(components::add)
+                is zshParser.ArithmeticLiteralContext -> visitArithmeticLiteral(node)?.let(components::add)
             }
         }
 
@@ -326,9 +335,8 @@ class ZshkVisitor : zshParserBaseVisitor<ZshkArg>() {
     inline fun visitArithmeticStatement(ctx: zshParser.ArithmeticStatementContext): ZshkValueArg<*> =
         ctx.accept(this) as ZshkValueArg<*>
 
-    override fun visitArithmeticExpression(ctx: zshParser.ArithmeticExpressionContext): ZshkArg {
-        return visitArithmeticStatement(ctx.arithmeticStatement(0))
-    }
+    override fun visitArithmeticExpression(ctx: zshParser.ArithmeticExpressionContext): ZshkValueArg<*> =
+        visitArithmeticStatement(ctx.arithmeticStatement(0))
 
     override fun visitGroupedArithmeticOperation(ctx: zshParser.GroupedArithmeticOperationContext?): ZshkArg {
         return super.visitGroupedArithmeticOperation(ctx)
