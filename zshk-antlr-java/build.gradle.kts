@@ -29,3 +29,11 @@ tasks.compileJava {
 tasks.getByName<Test>("test") {
     useJUnitPlatform()
 }
+
+publishing {
+    publications {
+        create<MavenPublication>("zshk-antlr-java") {
+            from(components["java"])
+        }
+    }
+}

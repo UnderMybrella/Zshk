@@ -1,4 +1,4 @@
 rootProject.name = "ZshK"
 
-include(":antlr-java")
+include(":zshk-antlr-java")
 include(":zshk")

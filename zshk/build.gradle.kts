@@ -3,6 +3,9 @@ plugins {
     id("kotlinx-atomicfu")
 }
 
+apply(plugin = "maven-publish")
+
+
 group = "dev.brella"
 version = "1.0.0"
 
@@ -31,7 +34,7 @@ kotlin {
 
         val jvmMain by getting {
             dependencies {
-                implementation(project(":antlr-java"))
+                implementation(project(":zshk-antlr-java"))
             }
         }
     }

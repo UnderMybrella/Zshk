@@ -47,8 +47,8 @@ data class ShellEnvironment(
 
     val fileDescriptors: MutableMap<Int, Pair<InputFlow?, OutputFlow?>> = HashMap()
 ) {
-    private val _exitCode = atomic<Int>(0)
-    public var exitCode by _exitCode
+//    private val _exitCode = atomic<Int>(0)
+    public var exitCode: Int = 0
 
     fun fork(
         variables: MutableMap<String, ZshkValueArg<*>>? = null,
